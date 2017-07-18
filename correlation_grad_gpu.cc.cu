@@ -186,7 +186,7 @@ void CorrelationGradKernelLauncher(const float* a, const float*b, const float*gr
   cudaMemcpy(offset_array, offset_list, 2*num_offsets*sizeof(int), cudaMemcpyHostToDevice);
 
   // Zero out the outputs, which we assume were allocated on the GPU by the context->allocate_output() call
-  size_t out_size = num_rows*num_cols*depth*sizeof(float);
+  size_t out_size = batch_size*num_rows*num_cols*depth*sizeof(float);
   cudaMemset(out_a,0,out_size);
   cudaMemset(out_b,0,out_size);
 
