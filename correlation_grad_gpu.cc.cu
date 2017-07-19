@@ -16,8 +16,18 @@ limitations under the License.
 #if GOOGLE_CUDA
 #define EIGEN_USE_GPU
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
+#include "correlation_param.h"
 
-__global__ void CorrelationGradKernel(const float* a, const float*b,const float*grad,float* out_a,float*out_b, const int batch_size,const int num_rows, const int num_cols, const int depth,const int num_offsets, const int* offset_list)  {
+
+// Device functions only run on GPU and are typically inlined
+__device__
+int getThreadIdx_3D_3D(){
+    int threadId = (threadIdx.z * (blockDim.x * blockDim.y))
+                 + (threadIdx.y * blockDim.x) + threadIdx.x;
+    return threadId;
+}
+
+__global__ void CorrelationGradKernel(const float* a, const float*b,const float*grad,float* out_a,float*out_b, const int batch_size,const int num_rows, const int num_cols, const int depth,const int num_offsets, const int* g_offset_list)  {
     int one_d_size   = depth;
     int two_d_size   = one_d_size*num_cols;
     int three_d_size = two_d_size*num_rows;
@@ -25,6 +35,17 @@ __global__ void CorrelationGradKernel(const float* a, const float*b,const float*
     int out1 = num_offsets;
     int out2 = num_cols * out1;
     int out3 = num_rows * out2;
+
+    int num_offset_ints = 2*num_offsets;
+    // Copy the offset list into shared memory to speed up access
+    __shared__ int offset_list[CORRELATION_OPERATOR_LIST_SIZE];
+    int mem_index = getThreadIdx_3D_3D();
+    int total_block_size = blockDim.x * blockDim.y * blockDim.z;
+    for( ; mem_index < num_offset_ints; mem_index+= total_block_size)
+    {
+       offset_list[mem_index] = g_offset_list[mem_index];
+    }
+    __syncthreads();
 
     for (int i = blockIdx.z * blockDim.z + threadIdx.z; i < batch_size; i+= blockDim.z * gridDim.z) {
         int b_root = i*three_d_size;
@@ -72,7 +93,7 @@ __global__ void CorrelationGradKernel(const float* a, const float*b,const float*
 
 }
 
-__global__ void CorrelationGradAKernel(const float* a, const float*b,const float*grad,float* out_a,float*out_b, const int batch_size,const int num_rows, const int num_cols, const int depth,const int num_offsets, const int* offset_list)  {
+__global__ void CorrelationGradAKernel(const float* a, const float*b,const float*grad,float* out_a,float*out_b, const int batch_size,const int num_rows, const int num_cols, const int depth,const int num_offsets, const int* g_offset_list)  {
     int one_d_size   = depth;
     int two_d_size   = one_d_size*num_cols;
     int three_d_size = two_d_size*num_rows;
@@ -80,6 +101,18 @@ __global__ void CorrelationGradAKernel(const float* a, const float*b,const float
     int out1 = num_offsets;
     int out2 = num_cols * out1;
     int out3 = num_rows * out2;
+
+    int num_offset_ints = 2*num_offsets;
+    // Copy the offset list into shared memory to speed up access
+    __shared__ int offset_list[CORRELATION_OPERATOR_LIST_SIZE];
+    int mem_index = getThreadIdx_3D_3D();
+    int total_block_size = blockDim.x * blockDim.y * blockDim.z;
+    for( ; mem_index < num_offset_ints; mem_index+= total_block_size)
+    {
+       offset_list[mem_index] = g_offset_list[mem_index];
+    }
+    
+    __syncthreads();
 
     for (int i = blockIdx.z * blockDim.z + threadIdx.z; i < batch_size; i+= blockDim.z * gridDim.z) {
         int b_root = i*three_d_size;
@@ -124,7 +157,7 @@ __global__ void CorrelationGradAKernel(const float* a, const float*b,const float
 
 }
 
-__global__ void CorrelationGradBKernel(const float* a, const float*b,const float*grad,float* out_a,float*out_b, const int batch_size,const int num_rows, const int num_cols, const int depth,const int num_offsets, const int* offset_list)  {
+__global__ void CorrelationGradBKernel(const float* a, const float*b,const float*grad,float* out_a,float*out_b, const int batch_size,const int num_rows, const int num_cols, const int depth,const int num_offsets, const int* g_offset_list)  {
     int one_d_size   = depth;
     int two_d_size   = one_d_size*num_cols;
     int three_d_size = two_d_size*num_rows;
@@ -132,6 +165,18 @@ __global__ void CorrelationGradBKernel(const float* a, const float*b,const float
     int out1 = num_offsets;
     int out2 = num_cols * out1;
     int out3 = num_rows * out2;
+
+    int num_offset_ints = 2*num_offsets;
+    // Copy the offset list into shared memory to speed up access
+    __shared__ int offset_list[CORRELATION_OPERATOR_LIST_SIZE];
+    int mem_index = getThreadIdx_3D_3D();
+    int total_block_size = blockDim.x * blockDim.y * blockDim.z;
+    for( ; mem_index < num_offset_ints; mem_index+= total_block_size)
+    {
+       offset_list[mem_index] = g_offset_list[mem_index];
+    }
+    
+    __syncthreads();
 
     for (int i = blockIdx.z * blockDim.z + threadIdx.z; i < batch_size; i+= blockDim.z * gridDim.z) {
         for (int b_j = blockIdx.x * blockDim.x + threadIdx.x; b_j < num_rows; b_j += blockDim.x * gridDim.x) {

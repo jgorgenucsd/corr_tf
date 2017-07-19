@@ -20,4 +20,4 @@ def _correlation_grad_cc(op, grad):
     :return: gradients with respect to the input of `correlation`.
     """
     
-    return correlation_grad_module.correlation_grad(grad, op.inputs[0], op.inputs[1])
+    return correlation_grad_module.correlation_grad(grad, op.inputs[0], op.inputs[1],stride=op.get_attr('stride'),max_displacement=op.get_attr('max_displacement'))

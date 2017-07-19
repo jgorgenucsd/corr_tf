@@ -7,6 +7,7 @@
 #include "tensorflow/core/framework/tensor_shape.h"
 #include "tensorflow/core/platform/default/logging.h"
 #include "tensorflow/core/framework/shape_inference.h"
+#include "correlation_param.h"
 
 using namespace tensorflow;
 
@@ -28,6 +29,12 @@ REGISTER_OP("Correlation")
     int num_steps = 2*(max_displacement/stride) + 1;
     int num_outputs = num_steps*num_steps;
     context->ReplaceDim(input_shape, 3, context->MakeDim(shape_inference::DimensionOrConstant(num_outputs)), &output_shape);
+    if(num_outputs > CORRELATION_OPERATOR_MAX_OFFSETS)
+    {
+        ::tensorflow::Status _status; 
+        _status.Update(errors::InvalidArgument("Number of offsets (2*(max_displacement/stride)+1)**2, must be < ", CORRELATION_OPERATOR_MAX_OFFSETS, " got ", num_outputs));
+        return _status;
+    }
     
 
     context->set_output(0, output_shape);
@@ -56,6 +63,10 @@ public:
     OP_REQUIRES(context, max_displacement_ > 0,
                 errors::InvalidArgument("Need max_displacement > 0, got ",
                                         max_displacement_));
+    int row_offsets = (int(max_displacement_/stride_) *2) + 1;
+    int num_offsets = row_offsets*row_offsets;
+    OP_REQUIRES(context, num_offsets < CORRELATION_OPERATOR_MAX_OFFSETS,
+                errors::InvalidArgument(( "Need num offsets < "  MACRO_STR(CORRELATION_OPERATOR_MAX_OFFSETS)  ", got "),  num_offsets));
   }
   int stride_;
   int max_displacement_;
@@ -334,6 +345,10 @@ class CorrelationFlatOp : public OpKernel {
     OP_REQUIRES(context, max_displacement_ > 0,
                 errors::InvalidArgument("Need max_displacement > 0, got ",
                                         max_displacement_));
+    int row_offsets = (int(max_displacement_/stride_) *2) + 1;
+    int num_offsets = row_offsets*row_offsets;
+    OP_REQUIRES(context, num_offsets < CORRELATION_OPERATOR_MAX_OFFSETS,
+                errors::InvalidArgument(( "Need num offsets < "  MACRO_STR(CORRELATION_OPERATOR_MAX_OFFSETS)  ", got "),  num_offsets));
   }
   int stride_;
   int max_displacement_;
