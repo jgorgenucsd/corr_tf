@@ -26,7 +26,7 @@ __global__ void CorrelationGradKernel(const float* a, const float*b,const float*
     int out2 = num_cols * out1;
     int out3 = num_rows * out2;
 
-    for (int i = blockIdx.z * blockDim.z; i < batch_size; i+= blockDim.z * gridDim.z) {
+    for (int i = blockIdx.z * blockDim.z + threadIdx.z; i < batch_size; i+= blockDim.z * gridDim.z) {
         int b_root = i*three_d_size;
         for (int j = blockIdx.x * blockDim.x + threadIdx.x; j < num_rows; j += blockDim.x * gridDim.x) {
           for (int k = blockIdx.y*blockDim.y + threadIdx.y; k < num_cols; k += blockDim.y * gridDim.y) {
@@ -81,7 +81,7 @@ __global__ void CorrelationGradAKernel(const float* a, const float*b,const float
     int out2 = num_cols * out1;
     int out3 = num_rows * out2;
 
-    for (int i = blockIdx.z * blockDim.z; i < batch_size; i+= blockDim.z * gridDim.z) {
+    for (int i = blockIdx.z * blockDim.z + threadIdx.z; i < batch_size; i+= blockDim.z * gridDim.z) {
         int b_root = i*three_d_size;
         for (int j = blockIdx.x * blockDim.x + threadIdx.x; j < num_rows; j += blockDim.x * gridDim.x) {
           for (int k = blockIdx.y*blockDim.y + threadIdx.y; k < num_cols; k += blockDim.y * gridDim.y) {
@@ -133,12 +133,11 @@ __global__ void CorrelationGradBKernel(const float* a, const float*b,const float
     int out2 = num_cols * out1;
     int out3 = num_rows * out2;
 
-    for (int i = blockIdx.z * blockDim.z; i < batch_size; i+= blockDim.z * gridDim.z) {
+    for (int i = blockIdx.z * blockDim.z + threadIdx.z; i < batch_size; i+= blockDim.z * gridDim.z) {
         for (int b_j = blockIdx.x * blockDim.x + threadIdx.x; b_j < num_rows; b_j += blockDim.x * gridDim.x) {
           for (int b_k = blockIdx.y*blockDim.y + threadIdx.y; b_k < num_cols; b_k += blockDim.y * gridDim.y) {
             int b_root = i*three_d_size + two_d_size*b_j + one_d_size * b_k;
-            for( int m = 0 ; m < depth; m++) {
-              int b_index = b_root +m;
+
               for (int l =0; l < num_offsets; l++ ) {
                 int j_offset = offset_list[2*l];
                 int k_offset = offset_list[2*l+1];
@@ -163,11 +162,13 @@ __global__ void CorrelationGradBKernel(const float* a, const float*b,const float
                     int grad_root = out3*i + out2*j+out1*k;
                     int grad_index =  grad_root+ l;
                     int a_root = three_d_size*i + two_d_size*j+one_d_size * k;
-                    int a_index = a_root+m;
-                    float current_coefficient = grad[grad_index]/ depth;
-                    out_b[b_index]+= current_coefficient*a[a_index];
+                    for( int m = 0 ; m < depth; m++) {
+                      int b_index = b_root +m;
+                      int a_index = a_root+m;
+                      float current_coefficient = grad[grad_index]/ depth;
+                      out_b[b_index]+= current_coefficient*a[a_index];
 	    
-                }
+                    }
               }
              }
            }

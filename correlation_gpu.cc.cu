@@ -26,7 +26,7 @@ __global__ void CorrelationKernel(const float* a, const float*b,float* out, cons
     int out2 = num_cols * out1;
     int out3 = num_rows * out2;
 
-    for (int i = blockIdx.z * blockDim.z; i < batch_size; i+= blockDim.z * gridDim.z) {
+    for (int i = blockIdx.z * blockDim.z + threadIdx.z; i < batch_size; i+= blockDim.z * gridDim.z) {
         for (int j = blockIdx.x * blockDim.x + threadIdx.x; j < num_rows; j += blockDim.x * gridDim.x) {
           for (int k = blockIdx.y*blockDim.y + threadIdx.y; k < num_cols; k += blockDim.y * gridDim.y) {
               for (int l =0; l < num_offsets; l++ ) {
